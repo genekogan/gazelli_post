@@ -36,6 +36,8 @@ Local S3 presigning is replaced with an opaque capability URL for a direct PUT t
 
 ## Deployment: Gene's account/credential boundary
 
+Setup in this checkout has been authorized. The public GitHub repository is pushed; the R2 bucket and its `pending/` lifecycle rule exist. A draft Worker holds `ADMIN_TOKEN` and `R2_ACCOUNT_ID`. The generated admin token is retained in the ignored `.env.production` file with mode 600; never commit or publish that file. D1 creation is waiting for the Wrangler OAuth refresh, and the two bucket-scoped R2 credentials still need interactive entry. Reuse the existing resources when resuming; do not create a second bucket or admin token.
+
 Remote resources must be created on **Eden's intended Cloudflare account**. Do not guess an account ID or use another account. Deployment has intentionally not been attempted before Gene confirms these steps. The D1 ID in `wrangler.toml` is a placeholder until setup.
 
 From `~/dev/gazelli_post`:

@@ -1,4 +1,5 @@
 name = "gazelli-post"
+account_id = "8dc09267cb6388daa0d0e35994fc1a68"
 main = "src/index.ts"
 compatibility_date = "2026-08-15"
 
