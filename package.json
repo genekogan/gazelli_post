@@ -1,0 +1,41 @@
+{
+  "name": "gazelli_post",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@10.27.0",
+  "license": "MIT",
+  "scripts": {
+    "dev": "wrangler dev",
+    "check": "tsc --noEmit",
+    "test": "vitest run",
+    "vectors": "tsx scripts/gen-test-vectors.ts",
+    "vendor": "node scripts/vendor.mjs",
+    "e2e": "tsx scripts/e2e.ts",
+    "deploy": "npm run vendor && wrangler deploy",
+    "db:local": "wrangler d1 migrations apply DB --local"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild",
+      "workerd"
+    ]
+  },
+  "dependencies": {
+    "aws4fetch": "1.0.20",
+    "canonicalize": "2.1.0",
+    "hono": "4.13.16"
+  },
+  "devDependencies": {
+    "@cloudflare/vitest-pool-workers": "0.23.0",
+    "@cloudflare/workers-types": "5.20261101.1",
+    "@noble/ed25519": "3.2.0",
+    "@types/node": "24.19.2",
+    "dompurify": "3.4.17",
+    "marked": "17.0.6",
+    "tsx": "4.23.15",
+    "typescript": "5.9.3",
+    "vitest": "4.1.12",
+    "wrangler": "4.156.0"
+  }
+}

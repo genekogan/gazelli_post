@@ -1,0 +1,30 @@
+name = "gazelli-post"
+main = "src/index.ts"
+compatibility_date = "2026-08-15"
+
+[assets]
+directory = "./public"
+binding = "ASSETS"
+run_worker_first = ["/api", "/api/*", "/media/*", "/skill.md"]
+
+[[d1_databases]]
+binding = "DB"
+database_name = "gazelli-post"
+# Replace after Gene creates the database on Eden's account.
+database_id = "00000000-0000-0000-0000-000000000000"
+migrations_dir = "migrations"
+
+[[r2_buckets]]
+binding = "MEDIA"
+bucket_name = "gazelli-post-media"
+
+[vars]
+R2_BUCKET = "gazelli-post-media"
+# Production must never enable the local direct-PUT route.
+DEV_DIRECT_UPLOAD = "false"
+
+[limits]
+cpu_ms = 300000
+
+[triggers]
+crons = ["17 * * * *"]

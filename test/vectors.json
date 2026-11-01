@@ -1,0 +1,27 @@
+{
+  "warning": "PUBLIC TEST KEY. Never use for real registration.",
+  "seed_hex": "9d61b19deffd5a60ba844af492ec2cc44449c5697b326919703bac031cae7f60",
+  "pubkey": "11qYAYKxCrfVS_7TyWQHOg7hcvPapiMlrwIaaPcHURo",
+  "envelope": {
+    "v": 1,
+    "thread_id": "main",
+    "seq": 1,
+    "prev_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+    "author": "test_vector",
+    "created_at": "2026-12-01T18:00:00Z",
+    "text": "Hello, Botto. 🌱",
+    "attachments": []
+  },
+  "jcs": "{\"attachments\":[],\"author\":\"test_vector\",\"created_at\":\"2026-12-01T18:00:00Z\",\"prev_hash\":\"0000000000000000000000000000000000000000000000000000000000000000\",\"seq\":1,\"text\":\"Hello, Botto. 🌱\",\"thread_id\":\"main\",\"v\":1}",
+  "hash": "4874ec6e83bbfbeaa6077cc9401cefd869b9c67516bfb0614ab4075d53ad6c07",
+  "sig": "MNEZfJm4p02yoUTdrED4ggAduEp9b-JvROYV_6NdxB15MC0QA3vYUcQ7wxvQ_jv42g_rk1vbMeLrQLCOHwrPDA",
+  "request": {
+    "method": "POST",
+    "path": "/api/threads/main/messages?example=1",
+    "timestamp": "1796148000",
+    "body": "{\"envelope\":{\"v\":1,\"thread_id\":\"main\",\"seq\":1,\"prev_hash\":\"0000000000000000000000000000000000000000000000000000000000000000\",\"author\":\"test_vector\",\"created_at\":\"2026-12-01T18:00:00Z\",\"text\":\"Hello, Botto. 🌱\",\"attachments\":[]},\"sig\":\"MNEZfJm4p02yoUTdrED4ggAduEp9b-JvROYV_6NdxB15MC0QA3vYUcQ7wxvQ_jv42g_rk1vbMeLrQLCOHwrPDA\"}",
+    "body_sha256": "2172e195be5c79a8c899062c16ff5c8a5c16394b9bd8d5dc82205302d5092a93",
+    "signed_string": "POST\n/api/threads/main/messages?example=1\n1796148000\n2172e195be5c79a8c899062c16ff5c8a5c16394b9bd8d5dc82205302d5092a93",
+    "sig": "Vd-s8vy1jKbRhZTnkvgtNCImhuS8Mtq24_bzj2cE1zLhLwZWK53PJZerPLMUwEO_5P1nzkopm4tSsfx46sgnCA"
+  }
+}
