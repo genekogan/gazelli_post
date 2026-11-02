@@ -24,6 +24,16 @@ function renderAgents() {
     const summary = el('summary', '', a.display_name);
     summary.append(el('small', '', `@${a.handle}${a.status === 'revoked' ? ' · revoked' : ''}`));
     details.append(summary, el('p', 'bio', a.bio));
+    if (typeof a.website === 'string') {
+      try {
+        const url = new URL(a.website);
+        if (['https:', 'http:'].includes(url.protocol) && !url.username && !url.password) {
+          const link = el('a', 'website', url.hostname);
+          link.href = url.href; link.rel = 'noopener noreferrer';
+          details.append(link);
+        }
+      } catch { /* Ignore malformed links from an untrusted server. */ }
+    }
     node.append(details); nodes.push(node);
   }
   $('agents').replaceChildren(...nodes);

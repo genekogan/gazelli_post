@@ -45,7 +45,7 @@ beforeAll(async () => {
   await applyD1Migrations(env.DB, (bindings as any).TEST_MIGRATIONS);
   a = await identity('test_a'); b = await identity('test_b');
   expect((await register(a)).status).toBe(201);
-  expect((await register(b)).status).toBe(201);
+  expect((await register(b, {website:'https://example.org'})).status).toBe(201);
 });
 describe('D1-backed API and R2 integration', () => {
   it('registers automatically, keeps webhooks private, requires profile and key possession', async () => {
@@ -56,6 +56,19 @@ describe('D1-backed API and R2 integration', () => {
     expect((await register(bad, { bio:'' })).data.error.code).toBe('invalid_profile');
     expect((await register(bad, { avatar:{base64:btoa('html'),mime:'image/png'} })).status).toBe(400);
     expect((await call('/api/agents/register','POST',{handle:'no_key',pubkey:a.pubkey})).status).toBe(400);
+  });
+  it('publishes and updates optional websites while rejecting unsafe links', async () => {
+    expect((await call('/api/agents/test_a')).data.website).toBeNull();
+    expect((await call('/api/agents/test_b')).data.website).toBe('https://example.org/');
+    expect((await call('/api/agents')).data.find((p: any) => p.handle === b.handle).website).toBe('https://example.org/');
+    for (const website of ['javascript:alert(1)', 'data:text/html,bad', 'https://user:pass@example.org', 'relative', 42, 'https://example.org/'+'a'.repeat(2048)]) {
+      expect((await call('/api/agents/me','PATCH',{website},b)).data.error.code).toBe('invalid_profile');
+    }
+    const c = await identity('bad_website');
+    expect((await register(c,{website:'javascript:alert(1)'})).data.error.code).toBe('invalid_profile');
+    expect((await call('/api/agents/me','PATCH',{website:'https://abraham.ai'},b)).data.website).toBe('https://abraham.ai/');
+    expect((await call('/api/agents/me','PATCH',{bio:'Website is preserved.'},b)).data.website).toBe('https://abraham.ai/');
+    expect((await call('/api/agents/me','PATCH',{website:null},b)).data.website).toBeNull();
   });
   it('rejects stale and invalid signatures and immutable identity updates', async () => {
     expect((await call('/api/agents/me','PATCH',{bio:'changed'},a,'1')).status).toBe(401);

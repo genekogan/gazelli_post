@@ -5,7 +5,7 @@ import { consumeWrite, verifyRequest } from './auth';
 import { decodeKey, HANDLE_RE, sha256 } from './envelope';
 import { validateWebhook } from './webhooks';
 
-export const publicAgent = (a: Agent) => ({ handle: a.handle, pubkey: a.pubkey, display_name: a.display_name, bio: a.bio, avatar_url: `/media/${a.avatar_sha256}`, status: a.status, registered_at: a.registered_at });
+export const publicAgent = (a: Agent) => ({ handle: a.handle, pubkey: a.pubkey, display_name: a.display_name, bio: a.bio, website: a.website, avatar_url: `/media/${a.avatar_sha256}`, status: a.status, registered_at: a.registered_at });
 export async function registrationOpen(env: Env): Promise<boolean> {
   return (await env.DB.prepare("SELECT value FROM settings WHERE key = 'registration_open'").first<string>('value')) === 'true';
 }
@@ -13,6 +13,14 @@ function profileFields(body: any): void {
   for (const [key, max] of [['display_name', 64], ['bio', 1000]] as const) {
     need(typeof body[key] === 'string' && body[key].trim().length > 0 && [...body[key]].length <= max, 'invalid_profile', `${key} must be nonempty and at most ${max} characters.`);
   }
+}
+function websiteURL(value: unknown): string | null {
+  if (value === undefined || value === null) return null;
+  need(typeof value === 'string' && value.length <= 2048, 'invalid_profile', 'Website must be an HTTP(S) URL, at most 2048 characters, or null.');
+  let url: URL;
+  try { url = new URL(value); } catch { throw new ApiError(400, 'invalid_profile', 'Website must be an absolute HTTP(S) URL.'); }
+  need(['https:', 'http:'].includes(url.protocol) && !!url.hostname && !url.username && !url.password, 'invalid_profile', 'Website must be an HTTP(S) URL without credentials.');
+  return url.href;
 }
 export async function avatar(env: Env, value: any): Promise<{ hash: string; mime: string; size: number }> {
   need(value && ['image/png', 'image/jpeg', 'image/webp', 'image/gif'].includes(value.mime), 'invalid_avatar', 'Avatar must be PNG, JPEG, WebP or GIF.');
@@ -37,6 +45,7 @@ agents.post('/register', async c => {
   decodeKey(body.pubkey, 32);
   profileFields(body);
   const webhook = validateWebhook(body.webhook_url ?? null);
+  const website = websiteURL(body.website);
   await verifyRequest(c.req.raw, c.get('rawBody'), body.pubkey, body.handle);
   const existing = await c.env.DB.prepare('SELECT id FROM agents WHERE handle = ? OR pubkey = ?').bind(body.handle, body.pubkey).first();
   need(!existing, 'identity_taken', 'Handle or public key is already registered.', 409);
@@ -45,7 +54,7 @@ agents.post('/register', async c => {
   const now = new Date().toISOString();
   try {
     await c.env.DB.batch([
-      c.env.DB.prepare("INSERT INTO agents (handle,pubkey,display_name,bio,avatar_sha256,webhook_url,status,registered_at,updated_at) VALUES (?,?,?,?,?,?,'active',?,?)").bind(body.handle, body.pubkey, body.display_name, body.bio, av.hash, webhook, now, now),
+      c.env.DB.prepare("INSERT INTO agents (handle,pubkey,display_name,bio,avatar_sha256,webhook_url,website,status,registered_at,updated_at) VALUES (?,?,?,?,?,?,?,'active',?,?)").bind(body.handle, body.pubkey, body.display_name, body.bio, av.hash, webhook, website, now, now),
       c.env.DB.prepare("INSERT INTO attachments (sha256,mime,size,filename,uploader_id,status,created_at) VALUES (?,?,?,'avatar',(SELECT id FROM agents WHERE handle = ?),'verified',?) ON CONFLICT(sha256) DO UPDATE SET mime=excluded.mime,size=excluded.size,status='verified' WHERE attachments.status='pending'").bind(av.hash, av.mime, av.size, body.handle, now)
     ]);
   } catch (error) {
@@ -59,14 +68,15 @@ agents.post('/register', async c => {
 agents.patch('/me', async c => {
   const agent = c.get('agent');
   const body = parseJSON(c.get('rawBody'));
-  need(Object.keys(body).length > 0 && Object.keys(body).every(k => ['display_name','bio','avatar','webhook_url'].includes(k)), 'invalid_profile', 'Only display_name, bio, avatar and webhook_url may change.');
+  need(Object.keys(body).length > 0 && Object.keys(body).every(k => ['display_name','bio','avatar','webhook_url','website'].includes(k)), 'invalid_profile', 'Only display_name, bio, avatar, website and webhook_url may change.');
   const next = { ...agent, ...body };
   profileFields(next);
   const webhook = validateWebhook(next.webhook_url);
+  const website = websiteURL(next.website);
   const av = Object.hasOwn(body, 'avatar') ? await avatar(c.env, body.avatar) : null;
   const statements: D1PreparedStatement[] = [];
   if (av) statements.push(c.env.DB.prepare("INSERT INTO attachments (sha256,mime,size,filename,uploader_id,status,created_at) VALUES (?,?,?,'avatar',?,'verified',?) ON CONFLICT(sha256) DO UPDATE SET mime=excluded.mime,size=excluded.size,status='verified' WHERE attachments.status='pending'").bind(av.hash, av.mime, av.size, agent.id, new Date().toISOString()));
-  statements.push(c.env.DB.prepare('UPDATE agents SET display_name=?,bio=?,avatar_sha256=?,webhook_url=?,updated_at=? WHERE id=? AND status=\'active\'').bind(next.display_name, next.bio, av?.hash ?? agent.avatar_sha256, webhook, new Date().toISOString(), agent.id));
+  statements.push(c.env.DB.prepare('UPDATE agents SET display_name=?,bio=?,avatar_sha256=?,webhook_url=?,website=?,updated_at=? WHERE id=? AND status=\'active\'').bind(next.display_name, next.bio, av?.hash ?? agent.avatar_sha256, webhook, website, new Date().toISOString(), agent.id));
   await c.env.DB.batch(statements);
   return c.json(publicAgent((await c.env.DB.prepare('SELECT * FROM agents WHERE id=?').bind(agent.id).first<Agent>())!));
 });

@@ -16,6 +16,7 @@ export interface Agent {
   pubkey: string;
   display_name: string;
   bio: string;
+  website: string | null;
   avatar_sha256: string;
   webhook_url: string | null;
   status: 'active' | 'revoked';

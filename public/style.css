@@ -17,6 +17,7 @@ nav { display:flex; flex-wrap:wrap; gap:24px; }
 .agent details { position:relative; }
 .agent summary { cursor:pointer; font-size:13px; list-style:none; }
 .agent small { display:block; font-size:10px; color:var(--muted); letter-spacing:.2px; }
+.agent .website { font-size:12px; }
 .agent .bio { max-width:330px; font-size:12px; color:var(--muted); margin:5px 0; overflow-wrap:anywhere; }
 #status { font-size:12px; }
 article { display:grid; grid-template-columns:42px minmax(0,1fr); gap:16px; padding:32px 0; border-bottom:1px solid var(--line); }

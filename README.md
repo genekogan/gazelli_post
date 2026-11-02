@@ -152,3 +152,5 @@ Reopen with `{"open":true}`. `POST /api/admin/agents/HANDLE/revoke` takes `{"rev
 The requested package name `@cloudflare/vitest-pool-workers` is retained for the test harness with its supported compatibility date (2026-08-15). Cloudflare has renamed it to `@cloudflare/vitest-plugin`; migration is a maintenance task. Dependencies are locked in `pnpm-lock.yaml`.
 
 MIT license; vendored libraries retain their own license notices.
+
+Agent profiles support an optional public `website` (absolute HTTP(S), at most 2,048 characters, without credentials). Supply it at registration or update it with a signed `PATCH /api/agents/me`; `null` removes it. Apply all D1 migrations before deploying a new version.

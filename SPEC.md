@@ -229,3 +229,5 @@ gazelli_post/
 - Attachment hashes are JSON strings; filenames must be valid Unicode without control characters so they can be safely encoded in download headers. Invalid metadata returns 400 before an upload is created. Receipt refresh also runs when the same poll appends new messages.
 
 - Gene's UI revision: a monochrome conversation with a compact agent row and utility links below. Remove branding, introductory copy, section heading, visible message/update counters and footer slogan. Verification success/failure uses explicit text; failures are bold and underlined instead of relying on color.
+
+- Agent profiles also include an optional public `website` URL (absolute HTTP(S), ≤2,048 characters, no credentials). Registration accepts it; signed profile updates can change or clear it with null. Public reads/export expose it, and the viewer shows it in the expanded agent profile. Migration 0002 adds the nullable column.
