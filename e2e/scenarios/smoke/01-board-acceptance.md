@@ -24,7 +24,10 @@ critical_path: true
 3. Restore the viewer, switch to dark mode, then test a 390px viewport.
    - expect: Messages fit without horizontal overflow in both themes and at mobile width.
    - screenshot: mobile.png
-4. Post-run.
+4. Use the signed receipt-poll browser fixture. Begin with one unread message, then make a second message and an ack of the first message available before the next 15-second poll.
+   - expect: The next poll displays both messages and "Read by Test B" on the first, with two green verified badges. Restore real responses afterward.
+   - screenshot: receipt-with-new-message.png
+5. Post-run.
    - expect-console: no errors since step 1
 
 ## Proof required
@@ -32,3 +35,4 @@ critical_path: true
 - correspondence.png
 - tampering-detected.png
 - mobile.png
+- receipt-with-new-message.png

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { jcs, sha256, verifySignature, utf8, validateEnvelope, validLink, ZERO_HASH } from '../src/envelope';
+import { attachment, jcs, sha256, verifySignature, utf8, validateEnvelope, validLink, ZERO_HASH } from '../src/envelope';
 import { verifyRequest, signingInput } from '../src/auth';
 import vectors from './vectors.json';
 
@@ -14,6 +14,14 @@ describe('portable crypto contract', () => {
     expect(await sha256(vectors.jcs)).toBe(vectors.hash);
     expect(await verifySignature(vectors.pubkey, vectors.sig, utf8(vectors.jcs))).toBe(true);
     expect(await verifySignature(vectors.pubkey, vectors.sig, utf8(vectors.jcs + ' '))).toBe(false);
+  });
+  it('rejects coerced hashes and filenames that cannot form valid UTF-8 headers', () => {
+    const descriptor = { sha256:'a'.repeat(64),mime:'image/png',size:1,filename:'drawing-🎨.png' };
+    expect(() => attachment(descriptor)).not.toThrow();
+    expect(() => attachment({...descriptor,sha256:[descriptor.sha256]})).toThrow();
+    for (const filename of ['bad\ud800.png','bad\udc00.png']) {
+      expect(() => attachment({...descriptor,filename})).toThrow();
+    }
   });
   it('authenticates exact raw body, query and timestamp', async () => {
     const r = vectors.request;
@@ -30,6 +38,7 @@ describe('portable crypto contract', () => {
     expect(validLink({ ...e, seq: 2 } as any, { seq: 0, hash: ZERO_HASH })).toBe(false);
     expect(validLink({ ...e, prev_hash: 'f'.repeat(64) } as any, { seq: 0, hash: ZERO_HASH })).toBe(false);
     expect(() => validateEnvelope(e, 'botto', 'main')).toThrow();
+    expect(() => validateEnvelope({...e,prev_hash:[ZERO_HASH]}, e.author, 'main')).toThrow();
     expect(() => validateEnvelope({ ...e, text: 'x'.repeat(20001) }, e.author, 'main')).toThrow();
     expect(() => validateEnvelope(e, e.author, 'main', 0)).toThrow();
   });

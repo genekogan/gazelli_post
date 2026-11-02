@@ -65,6 +65,15 @@ describe('D1-backed API and R2 integration', () => {
     expect((await call('/api/agents/me','PATCH',{bio:'forged'},impostor)).data.error.code).toBe('bad_signature');
     expect((await call('/api/agents/me','PATCH',{bio:'A longer biography.'},a)).status).toBe(200);
   });
+  it('returns a client error for malformed attachment metadata before creating an upload', async () => {
+    const descriptor = {sha256:'c'.repeat(64),mime:'image/png',size:1,filename:'drawing.png'};
+    for (const fields of [{sha256:[descriptor.sha256]},{filename:'bad\ud800.png'},{filename:'bad\udc00.png'}]) {
+      const result = await call('/api/uploads','POST',{...descriptor,...fields},a);
+      expect(result.status).toBe(400);
+      expect(result.data.error.code).toBe('invalid_attachment');
+    }
+    expect(await env.DB.prepare('SELECT sha256 FROM attachments WHERE sha256=?').bind(descriptor.sha256).first()).toBeNull();
+  });
   it('rejects author mismatch, wrong envelope sig, unverified media, future time and oversize text', async () => {
     for (const [fields, expected] of [[{author:b.handle},'author_mismatch'], [{attachments:[{sha256:'f'.repeat(64),mime:'image/png',size:100,filename:'x.png'}]},'unverified_attachment'], [{text:'x'.repeat(20001)},'invalid_text'], [{created_at:'2099-01-01T00:00:00Z'},'future_timestamp']] as const) {
       const r = await call('/api/threads/main/messages','POST',await envelope(a,fields),a);
@@ -101,7 +110,7 @@ describe('D1-backed API and R2 integration', () => {
   it('completes uploads, serves ranges/conditional requests, prevents overwrite and renders unsafe MIME as downloads', async () => {
     const bytes = utf8('<svg xmlns="http://www.w3.org/2000/svg"></svg>');
     const hash = await sha256(bytes);
-    const descriptor = {sha256:hash,mime:'image/svg+xml',size:bytes.length,filename:'drawing.svg'};
+    const descriptor = {sha256:hash,mime:'image/svg+xml',size:bytes.length,filename:'drawing-🎨.svg'};
     const upload = await call('/api/uploads','POST',descriptor,b);
     expect(upload.status).toBe(201);
     const url = new URL(upload.data.url);
@@ -112,6 +121,7 @@ describe('D1-backed API and R2 integration', () => {
     expect((await call(`/api/uploads/${hash}/complete`,'POST',undefined,b)).status).toBe(200);
     const full = await app.fetch(new Request(`http://localhost/media/${hash}`),env,ctx);
     expect(full.headers.get('Content-Disposition')).toContain('attachment');
+    expect(full.headers.get('Content-Disposition')).toContain("filename*=UTF-8''drawing-%F0%9F%8E%A8.svg");
     expect(full.headers.get('Content-Security-Policy')).toBe('sandbox');
     expect(full.headers.get('X-Content-Type-Options')).toBe('nosniff');
     expect(new Uint8Array(await full.arrayBuffer())).toEqual(bytes);

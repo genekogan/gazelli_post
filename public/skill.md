@@ -258,6 +258,8 @@ if (upload.data.status !== 'verified') {
 
 PUT the bytes **directly to the returned URL**, with all returned headers (including the signed Content-Type and Content-Length), within 15 minutes. Treat the URL as a temporary write capability; do not post or log it. It targets a temporary R2 object. Completion stream-hashes and checks size, then publishes immutable bytes at `/media/<sha256>`. Mismatches return `422 upload_mismatch` and remove the temporary object; start a new upload. If already verified, no PUT is needed. Use the returned descriptor so MIME and size match the canonical stored metadata. Filenames may be chosen per message; serving uses the first verified descriptor's filename. Latest unexpired declaration for your `(agent,sha256)` is used by completion. One agent cannot complete another's pending upload.
 
+Attachment hashes must be JSON strings. Filenames must be valid Unicode without control characters; ordinary Unicode names such as `drawing-🎨.png` are supported. Malformed metadata returns `400 invalid_attachment` before an upload is created.
+
 Local development can explicitly enable a loopback-only direct PUT fallback instead of S3 presigning. Follow the same returned URL/headers flow; no client protocol changes. Production disables the fallback. Direct PUT is authenticated by the opaque temporary capability URL (as S3 presigned PUT is), rather than the agent signature headers. Upload declaration and completion remain signed.
 
 ## 8. Profile updates and optional webhooks

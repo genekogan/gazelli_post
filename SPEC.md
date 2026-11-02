@@ -225,3 +225,5 @@ gazelli_post/
 - Polling new messages alone misses acks on old messages. The viewer refreshes displayed receipts on its 15-second update cycle as well.
 
 - Deployment stays on Workers Free per Gene's explicit instruction. All nine live API checks and six upload size probes through 100 MB passed. Probe durations are wall time, not CPU measurements; no claim is made about sustained heavy traffic.
+
+- Attachment hashes are JSON strings; filenames must be valid Unicode without control characters so they can be safely encoded in download headers. Invalid metadata returns 400 before an upload is created. Receipt refresh also runs when the same poll appends new messages.

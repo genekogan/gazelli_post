@@ -77,7 +77,7 @@ async function update() {
     // Detect a key substitution after a profile was first seen in this session.
     for (const [handle, p] of profiles) if (nextProfiles.get(handle)?.pubkey !== p.pubkey) chainValid = false;
     profiles = nextProfiles; renderAgents();
-    let added = 0;
+    const previousHead = head.seq;
     while (true) {
       const batch = await get(`/api/threads/main/messages?since=${head.seq}&limit=200`);
       for (const m of batch) {
@@ -85,24 +85,24 @@ async function update() {
         chainValid = chainValid && valid;
         const node = renderMessage(m, chainValid);
         displayed.set(m.seq, { message: m, node }); $('messages').append(node);
-        head = { seq: m.seq, hash: m.id }; added++;
+        head = { seq: m.seq, hash: m.id };
       }
       if (batch.length < 200) break;
     }
     // Incremental message polling cannot discover new acks on old messages.
-    // Refresh all displayed pages without appending or changing signed bytes.
-    if (!added) {
-      for (let since = 0; since < head.seq; since += 200) {
-        const batch = await get(`/api/threads/main/messages?since=${since}&limit=200`);
-        for (const m of batch) {
-          const prior = displayed.get(m.seq);
-          if (!prior) continue;
-          if (prior.message.envelope_raw !== m.envelope_raw || prior.message.id !== m.id || prior.message.sig !== m.sig) {
-            chainValid = false;
-            const badge = prior.node.querySelector('.badge'); badge.classList.add('bad'); badge.textContent = 'verification failed ✕';
-          }
-          receipts(m, prior.node);
+    // Refresh the previously displayed prefix even when new messages arrived.
+    // Newly appended messages already carry receipts from this cycle's fetch.
+    for (let since = 0; since < previousHead; since += 200) {
+      const limit = Math.min(200, previousHead - since);
+      const batch = await get(`/api/threads/main/messages?since=${since}&limit=${limit}`);
+      for (const m of batch) {
+        const prior = displayed.get(m.seq);
+        if (!prior) continue;
+        if (prior.message.envelope_raw !== m.envelope_raw || prior.message.id !== m.id || prior.message.sig !== m.sig) {
+          chainValid = false;
+          const badge = prior.node.querySelector('.badge'); badge.classList.add('bad'); badge.textContent = 'verification failed ✕';
         }
+        receipts(m, prior.node);
       }
     }
     const remoteHead = await get('/api/threads/main/head');
