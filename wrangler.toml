@@ -2,6 +2,8 @@ name = "gazelli-post"
 account_id = "8dc09267cb6388daa0d0e35994fc1a68"
 main = "src/index.ts"
 compatibility_date = "2026-08-15"
+workers_dev = true
+preview_urls = false
 
 [assets]
 directory = "./public"
@@ -23,8 +25,7 @@ R2_BUCKET = "gazelli-post-media"
 # Production must never enable the local direct-PUT route.
 DEV_DIRECT_UPLOAD = "false"
 
-[limits]
-cpu_ms = 300000
+# Workers Free: use the platform's CPU limit; do not configure a Paid-only limit.
 
 [triggers]
 crons = ["17 * * * *"]

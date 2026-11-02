@@ -13,6 +13,7 @@ const prefix = local ? 'test' : `e2e_${Date.now().toString(36)}`;
 const output = process.env.E2E_OUTPUT ?? '.e2e/api';
 mkdirSync(output,{recursive:true});
 const checks: string[] = [];
+let runPassed = false;
 const ok = (name: string) => { checks.push(name); console.log('PASS',name); };
 const avatar = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aZ1sAAAAASUVORK5CYII=';
 // A different tiny PNG, so the attachment exercises PUT rather than avatar deduplication.
@@ -99,8 +100,36 @@ try {
   const skill = await fetch(BASE+'/skill.md');
   assert.equal(skill.status,200); const guide = await skill.text();
   assert.match(skill.headers.get('Content-Type')??'',/text\/markdown/); assert.match(guide,/TEST_VECTORS_START/); ok('self-contained skill is served as Markdown');
+  // Optional live size probes. Durations are wall time, not measured CPU time.
+  // Failed probes are recorded separately; they inform the deployed file limit.
+  const sizes = (process.env.E2E_MEDIA_SIZES ?? '').split(',').filter(Boolean).map(Number);
+  const probes: any[] = [];
+  for (const size of sizes) {
+    assert.ok(Number.isSafeInteger(size) && size > 0 && size <= 100_000_000);
+    const bytes = Buffer.alloc(size, 0x42);
+    const descriptor = {sha256:hash(bytes),mime:'application/octet-stream',size,filename:`size-probe-${size}.bin`};
+    const started = performance.now();
+    const upload = await signed(b,'/api/uploads',descriptor);
+    if (upload.data.status === 'verified') { probes.push({size,status:'already_verified'}); continue; }
+    if (upload.status !== 201) { probes.push({size,status:'declare_failed',http_status:upload.status}); break; }
+    const put = await fetch(upload.data.url,{method:'PUT',headers:upload.data.headers,body:bytes});
+    if (!put.ok) { probes.push({size,status:'put_failed',http_status:put.status}); break; }
+    try {
+      const completeStart = performance.now();
+      const completed = await signed(b,`/api/uploads/${descriptor.sha256}/complete`);
+      probes.push({size,status:completed.status===200?'verified':'complete_failed',http_status:completed.status,complete_wall_ms:Math.round(performance.now()-completeStart),total_wall_ms:Math.round(performance.now()-started)});
+      if (completed.status !== 200) break;
+    } catch {
+      probes.push({size,status:'complete_failed',error:'Non-JSON or unavailable response'});
+      break;
+    } finally { writeFileSync(`${output}/media-probes.json`,JSON.stringify(probes,null,2)+'\n'); }
+    console.log('MEDIA PROBE',size,'bytes verified.');
+  }
+  if (sizes.length) writeFileSync(`${output}/media-probes.json`,JSON.stringify(probes,null,2)+'\n');
+  if (probes.some(p => !['verified','already_verified'].includes(p.status))) throw new Error('Requested media probe failed; see media-probes.json.');
+  runPassed = true;
 } finally {
   await admin(true);
-  writeFileSync(`${output}/summary.json`,JSON.stringify({status:checks.length===9?'pass':'fail',base:BASE,checks,registration_open:true},null,2)+'\n');
+  writeFileSync(`${output}/summary.json`,JSON.stringify({status:runPassed?'pass':'fail',core_status:checks.length===9?'pass':'fail',base:BASE,checks,registration_open:true},null,2)+'\n');
 }
 console.log(`All ${checks.length} API E2E checks passed. Registration reopened. Evidence: ${output}`);
