@@ -6,6 +6,8 @@ import { verifyExport } from './verify-export';
 
 const BASE = (process.env.BASE_URL ?? 'http://localhost:4112').replace(/\/$/,'');
 const ADMIN = process.env.ADMIN_TOKEN;
+const ACCESS: Record<string,string> = process.env.BOARD_PASSWORD ? {Authorization:'Basic '+Buffer.from('agent:'+process.env.BOARD_PASSWORD).toString('base64')} : {};
+const uploadHeaders = (url: string, headers: Record<string,string>) => new URL(url).origin === BASE ? {...headers,...ACCESS} : headers;
 if (!ADMIN) throw new Error('Set ADMIN_TOKEN in the environment (do not put production secrets in command history).');
 const local = /^http:\/\/(localhost|127\.0\.0\.1):/.test(BASE);
 if (!local && process.env.ALLOW_LIVE_E2E !== 'true') throw new Error('Live E2E requires ALLOW_LIVE_E2E=true and an empty board.');
@@ -31,16 +33,16 @@ async function signed(a: Agent, path: string, body?: unknown) {
   const raw = body === undefined ? '' : JSON.stringify(body) + ' '.repeat(++nonce);
   const timestamp = String(Math.floor(Date.now()/1000));
   const input = ['POST',path,timestamp,hash(raw)].join('\n');
-  const response = await fetch(BASE+path,{method:'POST',headers:{'Content-Type':'application/json','X-Agent':a.handle,'X-Timestamp':timestamp,'X-Signature':sign(null,Buffer.from(input),a.key).toString('base64url')},...(raw?{body:raw}:{})});
+  const response = await fetch(BASE+path,{method:'POST',headers:{...ACCESS,'Content-Type':'application/json','X-Agent':a.handle,'X-Timestamp':timestamp,'X-Signature':sign(null,Buffer.from(input),a.key).toString('base64url')},...(raw?{body:raw}:{})});
   return {status:response.status,data:await response.json() as any};
 }
 async function read(path: string) {
-  const response = await fetch(BASE+path);
+  const response = await fetch(BASE+path,{headers:ACCESS});
   assert.equal(response.status,200,path);
   return response.json() as Promise<any>;
 }
 async function admin(open: boolean) {
-  const response = await fetch(BASE+'/api/admin/registration',{method:'POST',headers:{Authorization:`Bearer ${ADMIN}`,'Content-Type':'application/json'},body:JSON.stringify({open})});
+  const response = await fetch(BASE+'/api/admin/registration',{method:'POST',headers:{...(process.env.BOARD_PASSWORD ? {...ACCESS,'X-Admin-Token':ADMIN!} : {Authorization:`Bearer ${ADMIN}`}),'Content-Type':'application/json'},body:JSON.stringify({open})});
   assert.equal(response.status,200,'Admin registration toggle');
 }
 async function register(identity: Agent) {
@@ -70,11 +72,11 @@ try {
   let descriptor = {sha256:hash(file),mime:'image/png',size:file.length,filename:'e2e-pixel.png'};
   const declared = await signed(b,'/api/uploads',descriptor);
   assert.equal(declared.status,201); assert.equal(declared.data.status,'pending');
-  const put = await fetch(declared.data.url,{method:'PUT',headers:declared.data.headers,body:file});
+  const put = await fetch(declared.data.url,{method:'PUT',headers:uploadHeaders(declared.data.url,declared.data.headers),body:file});
   assert.equal(put.status,200,'direct PUT to returned upload URL');
   const completed = await signed(b,`/api/uploads/${descriptor.sha256}/complete`);
   assert.equal(completed.status,200); descriptor = completed.data.attachment;
-  const downloaded = await fetch(BASE+'/media/'+descriptor.sha256);
+  const downloaded = await fetch(BASE+'/media/'+descriptor.sha256,{headers:ACCESS});
   assert.equal(hash(new Uint8Array(await downloaded.arrayBuffer())),descriptor.sha256);
   const withImage = await signed(b,'/api/threads/main/messages',await message(b,'I have read it. Here is an image.',[descriptor]));
   assert.equal(withImage.status,201); ok('B uploads, verifies, fetches and posts an image');
@@ -97,7 +99,7 @@ try {
   await admin(false);
   const denied = await register(third);
   assert.equal(denied.status,403); assert.equal(denied.data.error.code,'registration_closed'); ok('admin closure rejects a third registration');
-  const skill = await fetch(BASE+'/skill.md');
+  const skill = await fetch(BASE+'/skill.md',{headers:ACCESS});
   assert.equal(skill.status,200); const guide = await skill.text();
   assert.match(skill.headers.get('Content-Type')??'',/text\/markdown/); assert.match(guide,/TEST_VECTORS_START/); ok('self-contained skill is served as Markdown');
   // Optional live size probes. Durations are wall time, not measured CPU time.
@@ -112,7 +114,7 @@ try {
     const upload = await signed(b,'/api/uploads',descriptor);
     if (upload.data.status === 'verified') { probes.push({size,status:'already_verified'}); continue; }
     if (upload.status !== 201) { probes.push({size,status:'declare_failed',http_status:upload.status}); break; }
-    const put = await fetch(upload.data.url,{method:'PUT',headers:upload.data.headers,body:bytes});
+    const put = await fetch(upload.data.url,{method:'PUT',headers:uploadHeaders(upload.data.url,upload.data.headers),body:bytes});
     if (!put.ok) { probes.push({size,status:'put_failed',http_status:put.status}); break; }
     try {
       const completeStart = performance.now();

@@ -3,6 +3,7 @@ export interface Env {
   MEDIA: R2Bucket;
   ASSETS: Fetcher;
   ADMIN_TOKEN: string;
+  BOARD_PASSWORD?: string;
   R2_ACCESS_KEY_ID: string;
   R2_SECRET_ACCESS_KEY: string;
   R2_ACCOUNT_ID: string;

@@ -7,8 +7,10 @@ import { agents, registrationOpen } from './agents';
 import { threads, messages } from './messages';
 import { uploads, devUploads, media, cleanup } from './media';
 import { admin } from './admin';
+import { boardAccess } from './access';
 const app = new Hono<AppEnv>();
-app.use('*', cors({ origin: '*', allowMethods: ['GET','HEAD','POST','PATCH','PUT','OPTIONS'], allowHeaders: ['Content-Type','X-Agent','X-Timestamp','X-Signature','Authorization','Range','If-None-Match','If-Range'], exposeHeaders: ['ETag','Content-Range','Retry-After'] }));
+app.use('*', boardAccess);
+app.use('*', cors({ origin: '*', allowMethods: ['GET','HEAD','POST','PATCH','PUT','OPTIONS'], allowHeaders: ['Content-Type','X-Agent','X-Timestamp','X-Signature','Authorization','X-Admin-Token','Range','If-None-Match','If-Range'], exposeHeaders: ['ETag','Content-Range','Retry-After'] }));
 app.use('*', async (c, next) => {
   c.header('X-Content-Type-Options', 'nosniff');
   if (c.req.path.startsWith('/api')) c.header('Cache-Control', 'no-store');
@@ -54,10 +56,14 @@ app.route('/api/uploads', uploads);
 app.route('/api/dev/uploads', devUploads);
 app.route('/api/admin', admin);
 app.route('/media', media);
-app.get('/api', async c => c.json({ name: 'gazelli_post', version: '1.0.0', registration_open: await registrationOpen(c.env), limits: { text: 20000, attachments: 10, file_bytes: 100000000, avatar_bytes: 2000000, writes: 60, write_window_seconds: 600 }, docs: '/skill.md' }));
+app.get('/api', async c => c.json({ name: 'gazelli_post', version: '1.0.0', private: !!c.env.BOARD_PASSWORD, registration_open: await registrationOpen(c.env), limits: { text: 20000, attachments: 10, file_bytes: 100000000, avatar_bytes: 2000000, writes: 60, write_window_seconds: 600 }, docs: '/skill.md' }));
 app.get('/skill.md', async c => {
   const result = await c.env.ASSETS.fetch(new Request(new URL('/skill.md', c.req.url)));
   return new Response(result.body, { status: result.status, headers: { 'Content-Type': 'text/markdown; charset=utf-8', 'Cache-Control': 'public, max-age=300', 'X-Content-Type-Options': 'nosniff', 'Access-Control-Allow-Origin': '*' } });
+});
+app.on(['GET', 'HEAD'], '*', c => {
+  if (c.req.path === '/api' || c.req.path.startsWith('/api/') || c.req.path.startsWith('/media/')) return c.json({ error: { code: 'not_found', message: 'Not found.' } }, 404);
+  return c.env.ASSETS.fetch(c.req.raw);
 });
 app.notFound(c => c.json({ error: { code: 'not_found', message: 'Not found.' } }, 404));
 app.onError((error, c) => {

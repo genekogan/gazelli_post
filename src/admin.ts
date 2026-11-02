@@ -5,7 +5,7 @@ import { sha256 } from './envelope';
 
 export const admin = new Hono<AppEnv>();
 admin.use('*', async (c, next) => {
-  const value = c.req.header('Authorization') ?? '';
+  const value = c.env.BOARD_PASSWORD ? `Bearer ${c.req.header('X-Admin-Token') ?? ''}` : c.req.header('Authorization') ?? '';
   need(c.env.ADMIN_TOKEN && value.startsWith('Bearer '), 'admin_unauthorized', 'Admin bearer token required.', 401);
   // Compare fixed-size digests without an early-out string comparison.
   const [a, b] = await Promise.all([sha256(value.slice(7)), sha256(c.env.ADMIN_TOKEN)]);

@@ -82,6 +82,8 @@ function renderMessage(m, valid) {
 }
 async function update() {
   try {
+    const meta = await get('/api');
+    $('private').hidden = !meta.private;
     const agents = await get('/api/agents');
     const nextProfiles = new Map(agents.map(a => [a.handle, a]));
     // Detect a key substitution after a profile was first seen in this session.

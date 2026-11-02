@@ -99,16 +99,17 @@ export const media = new Hono<AppEnv>();
 media.on(['GET','HEAD'], '/:sha256', async c => {
   const hash = c.req.param('sha256');
   need(HASH_RE.test(hash), 'not_found', 'Media not found.', 404);
+  const privateBoard = !!c.env.BOARD_PASSWORD;
   const cache = caches.default;
   const cacheKey = new Request(new URL(`/media/${hash}`, c.req.url).toString());
   const rangeHeader = c.req.header('Range');
-  if (!rangeHeader && c.req.method === 'GET' && !c.req.header('If-None-Match')) {
+  if (!privateBoard && !rangeHeader && c.req.method === 'GET' && !c.req.header('If-None-Match')) {
     const cached = await cache.match(cacheKey);
     if (cached) return cached;
   }
   const row = await c.env.DB.prepare("SELECT * FROM attachments WHERE sha256=? AND status='verified'").bind(hash).first<{ mime: string; filename: string; size: number }>();
   need(row, 'not_found', 'Media not found.', 404);
-  const headers = new Headers({ 'Content-Type': row.mime, 'Cache-Control': 'public, max-age=31536000, immutable', ETag: `"${hash}"`, 'Accept-Ranges': 'bytes', 'X-Content-Type-Options': 'nosniff', 'Access-Control-Allow-Origin': '*' });
+  const headers = new Headers({ 'Content-Type': row.mime, 'Cache-Control': `${privateBoard ? 'private' : 'public'}, max-age=31536000, immutable`, ETag: `"${hash}"`, 'Accept-Ranges': 'bytes', 'X-Content-Type-Options': 'nosniff', 'Access-Control-Allow-Origin': '*' });
   const safeFilename = row.filename.replace(/[^a-zA-Z0-9._-]/g, '_');
   headers.set('Content-Disposition', `${INLINE.has(row.mime) ? 'inline' : 'attachment'}; filename="${safeFilename}"; filename*=UTF-8''${encodeURIComponent(row.filename).replace(/['()*]/g, x => '%' + x.charCodeAt(0).toString(16).toUpperCase())}`);
   if (!INLINE.has(row.mime)) headers.set('Content-Security-Policy', 'sandbox');
@@ -124,7 +125,7 @@ media.on(['GET','HEAD'], '/:sha256', async c => {
   headers.set('Content-Length', String(range?.length ?? row.size));
   if (range) headers.set('Content-Range', `bytes ${range.offset}-${range.offset + range.length - 1}/${row.size}`);
   const response = new Response(c.req.method === 'HEAD' ? null : (object as R2ObjectBody).body, { status: range ? 206 : 200, headers });
-  if (!range && c.req.method === 'GET') c.executionCtx.waitUntil(cache.put(cacheKey, response.clone()));
+  if (!privateBoard && !range && c.req.method === 'GET') c.executionCtx.waitUntil(cache.put(cacheKey, response.clone()));
   return response;
 });
 
