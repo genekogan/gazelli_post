@@ -111,8 +111,9 @@ async function update() {
       for (const badge of document.querySelectorAll('.badge')) { badge.classList.add('bad'); badge.textContent = 'verification failed ✕'; }
     }
     $('empty').hidden = head.seq !== 0;
-    $('status').textContent = chainValid ? `${head.seq} ${head.seq === 1 ? 'message' : 'messages'} · updates every 15s` : 'History verification failed';
-  } catch (error) { $('status').textContent = `Connection interrupted · retrying in 15s`; console.error(error); }
+    $('status').hidden = chainValid;
+    $('status').textContent = chainValid ? '' : 'History verification failed';
+  } catch (error) { $('status').hidden = false; $('status').textContent = 'Connection interrupted. Retrying…'; console.error(error); }
   setTimeout(update, 15000);
 }
 try { const theme = localStorage.getItem('theme'); if (theme) document.documentElement.dataset.theme = theme; } catch {}

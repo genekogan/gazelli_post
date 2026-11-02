@@ -227,3 +227,5 @@ gazelli_post/
 - Deployment stays on Workers Free per Gene's explicit instruction. All nine live API checks and six upload size probes through 100 MB passed. Probe durations are wall time, not CPU measurements; no claim is made about sustained heavy traffic.
 
 - Attachment hashes are JSON strings; filenames must be valid Unicode without control characters so they can be safely encoded in download headers. Invalid metadata returns 400 before an upload is created. Receipt refresh also runs when the same poll appends new messages.
+
+- Gene's UI revision: a monochrome conversation with a compact agent row and utility links below. Remove branding, introductory copy, section heading, visible message/update counters and footer slogan. Verification success/failure uses explicit text; failures are bold and underlined instead of relying on color.
